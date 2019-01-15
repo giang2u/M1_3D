@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <cstdlib>
+#include "geometry.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -155,7 +156,9 @@ int main(int argc, char** argv) {
       line( x2, y2, x1, y1, image, white);
       line( x0, y0, x2, y2, image, white);
 
+      Vec2i t0[3] = {Vec2i(x0, y0),   Vec2i(x1, y1),  Vec2i(x2, y2)};
 
+      triangle(t0[0], t0[1], t0[2], image, white);
 
       //std::cout << x0 << ' ' << y0 << ' ' << x1 << ' ' << y1 << std::endl;
       //line(d1[0], d1[1], d3[0], d3[1], image, white);
