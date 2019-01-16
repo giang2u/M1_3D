@@ -11,9 +11,22 @@
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
+const int width = 800;
+const int height = 800;
 
 
 
+std::vector<std::string> split(const std::string &chaine, char delimiteur)
+{
+  std::vector<std::string> elements;
+  std::stringstream ss(chaine);
+  std::string sousChaine;
+ while (getline(ss, sousChaine, delimiteur))
+ {
+ elements.push_back(sousChaine);
+ }
+ return elements;
+}
 
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
@@ -47,42 +60,216 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 } 
 
 
-void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) { 
-    if (t0.y==t1.y && t0.y==t2.y) return; // I dont care about degenerate triangles 
-    // sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!) 
-    if (t0.y>t1.y) std::swap(t0, t1); 
-    if (t0.y>t2.y) std::swap(t0, t2); 
-    if (t1.y>t2.y) std::swap(t1, t2); 
-    int total_height = t2.y-t0.y; 
-    for (int i=0; i<total_height; i++) { 
-        bool second_half = i>t1.y-t0.y || t1.y==t0.y; 
-        int segment_height = second_half ? t2.y-t1.y : t1.y-t0.y; 
-        float alpha = (float)i/total_height; 
-        float beta  = (float)(i-(second_half ? t1.y-t0.y : 0))/segment_height; // be careful: with above conditions no division by zero here 
-        Vec2i A =               t0 + (t2-t0)*alpha; 
-        Vec2i B = second_half ? t1 + (t2-t1)*beta : t0 + (t1-t0)*beta; 
-        if (A.x>B.x) std::swap(A, B); 
-        for (int j=A.x; j<=B.x; j++) { 
-            image.set(j, t0.y+i, color); // attention, due to int casts t0.y+i != A.y 
-        } 
+void line(Vec2i t0, Vec2i t1, TGAImage &image, TGAColor color) { 
+  int x0 = t0.x;
+  int y0 = t0.y;
+  int x1 = t1.x;
+  int y1 = t1.y;
+  bool steep = false; 
+  if (std::abs(x0-x1)<std::abs(y0-y1)) { 
+    std::swap(x0, y0); 
+    std::swap(x1, y1); 
+    steep = true; 
+  } 
+  if (x0>x1) { 
+    std::swap(x0, x1); 
+    std::swap(y0, y1); 
+  } 
+
+  int dx = x1-x0; 
+  int dy = y1-y0; 
+  int derror2 = std::abs(dy)*2; 
+  int error2 = 0; 
+  int y = y0; 
+
+  for (int x=x0; x<=x1; x++) { 
+    if (steep) { 
+      image.set(y, x, color); 
+    } else { 
+      image.set(x, y, color); 
     } 
+    error2 += derror2; 
+    if (error2 > dx) { 
+      y += (y1>y0?1:-1); 
+      error2 -= dx*2; 
+    } 
+  } 
+
+} 
+
+
+
+void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) { 
+    line(t0, t1, image, color); 
+    line(t1, t2, image, color); 
+    line(t2, t0, image, color); 
 }
 
-std::vector<std::string> split(const std::string &chaine, char delimiteur)
-{
-  std::vector<std::string> elements;
-  std::stringstream ss(chaine);
-  std::string sousChaine;
- while (getline(ss, sousChaine, delimiteur))
- {
- elements.push_back(sousChaine);
- }
- return elements;
+void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
+  if (t0.y > t1.y) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
+  if (t1.y > t2.y)  {
+    std::swap(t1.y, t2.y);
+    std::swap(t1.x, t2.x);
+  }
+  if (t0.x > t1.x) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
+  int x0 = t0.x;
+  int y0 = t0.y;
+  int x1 = t1.x;
+  int y1 = t1.y;
+  int x2 = t2.x;
+  int y2 = t2.y;
+
+  int dx = x2-x0; 
+  int dy = y2-y0; 
+  int rapport = std::abs((dx/dy));
+  int derror2 = std::abs(dx)*2; 
+  int error2 = 0; 
+  int y = y0; 
+
+  int dx2 = x2-x1;
+  int dy2 = y2-y1;
+  int rapport2 = std::abs((dx2/dy2));
+  int derror3 = std::abs(dx2)*2; 
+  int error3 = 0; 
+  int yy = y2; 
+
+  int x = x0;
+  int xx = x1;
+
+  if (rapport == 0) rapport = 1;
+  if (rapport2 == 0) rapport2 = 1;
+  // std::cout << rapport << "   "  << rapport2 << std::endl;
+
+  //std::cout << " TOPPPPPPPPP      T0  :" << t0.x << "," <<  t0.y <<  "  T1  :" << t1.x << "," << t1.y << "   T2  :" << t2.x << "," << t2.y  << std::endl;
+
+  for (int i = y0; i <= y2; i++) {
+    line(  x , i , xx , i, image, color);
+    error2 += derror2;
+    error3 += derror3; 
+
+    if (error2 > dy) { 
+      x += (x2>x0?rapport:-rapport); 
+      error2 -= dy*2; 
+    } 
+
+    if (error3 > dy2) { 
+      xx += (x2>x1?rapport:-rapport2); 
+      error3 -= dy2*2; 
+    } 
+
+    //std::cout << x << " " << y << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
+  }
+
+}
+
+void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
+  if (t0.y < t1.y) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
+  if (t1.y < t2.y)  {
+    std::swap(t1.y, t2.y);
+    std::swap(t1.x, t2.x);
+  }
+  if (t0.x > t1.x) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
+ 
+  //std::cout << " T0  :" << t0.x << "," <<  t0.y <<  "  T1  :" << t1.x << "," << t1.y << "   T2  :" << t2.x << "," << t2.y  << std::endl;
+
+  int x0 = t0.x;
+  int y0 = t0.y;
+  int x1 = t1.x;
+  int y1 = t1.y;
+  int x2 = t2.x;
+  int y2 = t2.y;
+
+  int dx = x2-x0; 
+  int dy = y0-y2; 
+  int rapport = std::abs((dx/dy));
+  int derror2 = std::abs(dx)*2; 
+  int error2 = 0; 
+  int y = y0; 
+
+  int dx2 = x2-x1;
+  int dy2 = y1-y2;
+  int rapport2 = std::abs((dx2/dy2));
+  int derror3 = std::abs(dx2)*2; 
+  int error3 = 0; 
+  int yy = y2; 
+
+  int x = x0;
+  int xx = x1;
+
+  if (rapport == 0) rapport = 1;
+  if (rapport2 == 0) rapport2 = 1;
+  std::cout << rapport << "   "  << rapport2 << std::endl;
+
+  for (int i = y0; i >= y2; i--) {
+    line(  x , i, xx , i, image, color);
+    error2 += derror2;
+    error3 += derror3; 
+
+    if (error2 > dy) { 
+      x += (x2>x0?rapport:-rapport); 
+      error2 -= dy*2; 
+    } 
+
+    if (error3 > dy2) { 
+      xx += (x2>x1?rapport2:-rapport2); 
+      error3 -= dy2*2; 
+    } 
+    std::cout << x << " " << y << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
+  }
+
+}
+
+
+void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
+
+
+  TGAColor tga = TGAColor( rand() % 256, rand() % 256, rand() % 256,255);
+/* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
+      if (t0.y > t1.y) {
+	std::swap(t0.y, t1.y);
+	std::swap(t0.x, t1.x);
+      }
+      if (t1.y > t2.y)  {
+	std::swap(t1.y, t2.y);
+	std::swap(t1.x, t2.x);
+      }
+      if (t0.y > t1.y) {
+	std::swap(t0.y, t1.y);
+	std::swap(t0.x, t1.x);
+      }
+
+
+  if (t0.y == t1.y)
+    {
+      filledtoptriangle(t0, t1, t2, image, tga);
+    }
+  else if (t1.y == t2.y)
+    {
+      filledbottomtriangle(t0, t1, t2, image, tga);
+    }
+  else
+    {
+      Vec2i t4[1] = { Vec2i(  (int) (t2.x + ((float)(t1.y - t2.y) / (float)(t0.y - t2.y)) * (t0.x - t2.x)), t1.y ) };
+      filledtoptriangle(t2, t1, t4[0], image, tga);
+      filledbottomtriangle(t1, t4[0], t0, image, tga);
+      
+    }
 }
 
 
 std::vector<std::string> read(std::string name, std::vector<std::string>& listElements) {
-
   std::vector<std::string> coord;
   std::ifstream fichier(name.c_str());  // on ouvre le fichier en lecture
         if(fichier)  // si l'ouverture a réussi
@@ -114,24 +301,14 @@ int main(int argc, char** argv) {
   TGAImage image(800, 800, TGAImage::RGB);
   //line(13,20,80,40,image,white);
   std::vector<std::string> vect = read("african_head.obj", listElements);
-  int width = 800;
-  int height = 800;
-  std::vector<std::string> elements;
 
-  /*
-    for (int i=0; i<vect.size(); i++) { 
-    elements = split(vect[i], ' ');
-    int x0 = (atof( elements[0].c_str()) +1.)*width/2.; 
-    int y0 = (atof( elements[1].c_str()) +1.)*height/2.; 
-    image.set(x0, y0, white);
-    }
-  */
+  
+  std::vector<std::string> elements;
 
   char delimiter = ' ';
 
   std::vector<std::string> d1, d2, d3, point;
-
-
+  
     for (int i=0; i < listElements.size() ; i++) { 
       elements = split(listElements[i], delimiter);
 
@@ -157,17 +334,16 @@ int main(int argc, char** argv) {
       line( x0, y0, x2, y2, image, white);
 
       Vec2i t0[3] = {Vec2i(x0, y0),   Vec2i(x1, y1),  Vec2i(x2, y2)};
-
-      triangle(t0[0], t0[1], t0[2], image, white);
-
-      //std::cout << x0 << ' ' << y0 << ' ' << x1 << ' ' << y1 << std::endl;
-      //line(d1[0], d1[1], d3[0], d3[1], image, white);
-      //line(d2[0], d2[1], d3[0], d3[1], image, white);
-
+      dessin(t0[0], t0[1], t0[2], image, white);
     }
   
 
-	
+  Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(150, 160),  Vec2i(70, 80)};
+  //filledtoptriangle(t0[0], t0[1], t0[2], image, red); 
+
+  dessin(t0[0], t0[1], t0[2], image, red);
+
+
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
   image.write_tga_file("output.tga");
   return 0;
