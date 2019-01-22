@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <cstdlib>
+#include <math.h>  
 #include "geometry.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
@@ -127,14 +128,14 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
 
   int dx = x2-x0; 
   int dy = y2-y0; 
-  int rapport = std::abs((dx/dy));
+  int rapport = std::abs( ceil( ((float)dx/(float)dy) - 0.5) );
   int derror2 = std::abs(dx)*2; 
   int error2 = 0; 
   int y = y0; 
 
   int dx2 = x2-x1;
   int dy2 = y2-y1;
-  int rapport2 = std::abs((dx2/dy2));
+  int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
   int derror3 = std::abs(dx2)*2; 
   int error3 = 0; 
   int yy = y2; 
@@ -146,6 +147,9 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
   if (rapport2 == 0) rapport2 = 1;
   // std::cout << rapport << "   "  << rapport2 << std::endl;
 
+
+  //std::cout << x0 << ","  << y0 << "  " <<  rapport << "  " << "     " << x1 << ","  << y1 << "  "  << rapport2  <<  "  "  << x2 << std::endl;
+
   //std::cout << " TOPPPPPPPPP      T0  :" << t0.x << "," <<  t0.y <<  "  T1  :" << t1.x << "," << t1.y << "   T2  :" << t2.x << "," << t2.y  << std::endl;
 
   for (int i = y0; i <= y2; i++) {
@@ -154,16 +158,16 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
     error3 += derror3; 
 
     if (error2 > dy) { 
-      x += (x2>x0?rapport:-rapport); 
+      if ( (x2>x0 && x < x2) || (x2<x0 && x > x2) ) x += (x2>x0?rapport:-rapport); 
       error2 -= dy*2; 
     } 
 
     if (error3 > dy2) { 
-      xx += (x2>x1?rapport:-rapport2); 
+      if ( (x2>x1 && xx < x2) || (x2<x1 && xx > x2) ) xx += (x2>x1?rapport2:-rapport2); 
       error3 -= dy2*2; 
     } 
 
-    //std::cout << x << " " << y << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
+    // std::cout << x << " " << i << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
   }
 
 }
@@ -193,14 +197,14 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
 
   int dx = x2-x0; 
   int dy = y0-y2; 
-  int rapport = std::abs((dx/dy));
+  int rapport = std::abs(  ceil( ((float)dx/(float)dy) - 0.5) );
   int derror2 = std::abs(dx)*2; 
   int error2 = 0; 
   int y = y0; 
 
   int dx2 = x2-x1;
   int dy2 = y1-y2;
-  int rapport2 = std::abs((dx2/dy2));
+  int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
   int derror3 = std::abs(dx2)*2; 
   int error3 = 0; 
   int yy = y2; 
@@ -210,7 +214,6 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
 
   if (rapport == 0) rapport = 1;
   if (rapport2 == 0) rapport2 = 1;
-  std::cout << rapport << "   "  << rapport2 << std::endl;
 
   for (int i = y0; i >= y2; i--) {
     line(  x , i, xx , i, image, color);
@@ -218,15 +221,15 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
     error3 += derror3; 
 
     if (error2 > dy) { 
-      x += (x2>x0?rapport:-rapport); 
+      if ( (x2>x0 && x < x2) || (x2<x0 && x > x2) ) x += (x2>x0?rapport:-rapport); 
       error2 -= dy*2; 
     } 
 
     if (error3 > dy2) { 
-      xx += (x2>x1?rapport2:-rapport2); 
+      if ( (x2>x1 && xx < x2) || (x2<x1 && xx > x2) ) xx += (x2>x1?rapport2:-rapport2); 
       error3 -= dy2*2; 
     } 
-    std::cout << x << " " << y << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
+    //std::cout << x << " " << y << " " << xx << " " << error2 << " " << error3 << " " << derror2 << " " << derror3 << " " << dy << " " << dy2<< std::endl;
   }
 
 }
@@ -235,7 +238,14 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
 void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 
 
-  TGAColor tga = TGAColor( rand() % 256, rand() % 256, rand() % 256,255);
+TGAColor tga = TGAColor( 255, 255,  255, 255);
+
+float intensity = n*light_dir; 
+    if (intensity>0) { 
+      tga = TGAColor( intensity*255, intensity*255,  intensity*255, 255);
+    } 
+
+  
 /* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
       if (t0.y > t1.y) {
 	std::swap(t0.y, t1.y);
@@ -261,6 +271,14 @@ void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
     }
   else
     {
+
+intenx = (t2.x - t0.x) ^ (t1.x - t0.x);
+inteny = (t2.y - t0.y) ^ (t1.y - t0.y);
+
+norm = std::sqrt(intenx * intenx + inteny * inteny);
+n = 
+
+
       Vec2i t4[1] = { Vec2i(  (int) (t2.x + ((float)(t1.y - t2.y) / (float)(t0.y - t2.y)) * (t0.x - t2.x)), t1.y ) };
       filledtoptriangle(t2, t1, t4[0], image, tga);
       filledbottomtriangle(t1, t4[0], t0, image, tga);
@@ -341,7 +359,7 @@ int main(int argc, char** argv) {
   Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(150, 160),  Vec2i(70, 80)};
   //filledtoptriangle(t0[0], t0[1], t0[2], image, red); 
 
-  dessin(t0[0], t0[1], t0[2], image, red);
+ // dessin(t0[0], t0[1], t0[2], image, red);
 
 
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
