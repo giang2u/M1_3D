@@ -129,6 +129,7 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
   int dx = x2-x0; 
   int dy = y2-y0; 
   int rapport = std::abs( ceil( ((float)dx/(float)dy) - 0.5) );
+  if ( dy == 0) std::cout << rapport  << "    COUCOU" << std::endl; rapport = 0;
   int derror2 = std::abs(dx)*2; 
   int error2 = 0; 
   int y = y0; 
@@ -136,6 +137,8 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
   int dx2 = x2-x1;
   int dy2 = y2-y1;
   int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
+  
+  if ( dy2 == 0) std::cout << rapport2 << "    COUCOU" << std::endl; rapport2 = 0;
   int derror3 = std::abs(dx2)*2; 
   int error3 = 0; 
   int yy = y2; 
@@ -198,6 +201,7 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
   int dx = x2-x0; 
   int dy = y0-y2; 
   int rapport = std::abs(  ceil( ((float)dx/(float)dy) - 0.5) );
+  if ( dy == 0) std::cout << rapport  << "    COUCOU" << std::endl; rapport = 0;
   int derror2 = std::abs(dx)*2; 
   int error2 = 0; 
   int y = y0; 
@@ -205,6 +209,7 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
   int dx2 = x2-x1;
   int dy2 = y1-y2;
   int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
+  if ( dy2 == 0) std::cout << rapport2  << "    COUCOU" << std::endl; rapport2 = 0;
   int derror3 = std::abs(dx2)*2; 
   int error3 = 0; 
   int yy = y2; 
@@ -235,53 +240,39 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
 }
 
 
+
 void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 
+  /* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
+  if (t0.y > t1.y) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
+  if (t1.y > t2.y)  {
+    std::swap(t1.y, t2.y);
+    std::swap(t1.x, t2.x);
+  }
+  if (t0.y > t1.y) {
+    std::swap(t0.y, t1.y);
+    std::swap(t0.x, t1.x);
+  }
 
-TGAColor tga = TGAColor( 255, 255,  255, 255);
-
-float intensity = n*light_dir; 
-    if (intensity>0) { 
-      tga = TGAColor( intensity*255, intensity*255,  intensity*255, 255);
-    } 
-
-  
-/* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
-      if (t0.y > t1.y) {
-	std::swap(t0.y, t1.y);
-	std::swap(t0.x, t1.x);
-      }
-      if (t1.y > t2.y)  {
-	std::swap(t1.y, t2.y);
-	std::swap(t1.x, t2.x);
-      }
-      if (t0.y > t1.y) {
-	std::swap(t0.y, t1.y);
-	std::swap(t0.x, t1.x);
-      }
 
 
   if (t0.y == t1.y)
     {
-      filledtoptriangle(t0, t1, t2, image, tga);
+      filledtoptriangle(t0, t1, t2, image, color);
     }
   else if (t1.y == t2.y)
     {
-      filledbottomtriangle(t0, t1, t2, image, tga);
+      filledbottomtriangle(t0, t1, t2, image, color);
     }
   else
     {
 
-intenx = (t2.x - t0.x) ^ (t1.x - t0.x);
-inteny = (t2.y - t0.y) ^ (t1.y - t0.y);
-
-norm = std::sqrt(intenx * intenx + inteny * inteny);
-n = 
-
-
       Vec2i t4[1] = { Vec2i(  (int) (t2.x + ((float)(t1.y - t2.y) / (float)(t0.y - t2.y)) * (t0.x - t2.x)), t1.y ) };
-      filledtoptriangle(t2, t1, t4[0], image, tga);
-      filledbottomtriangle(t1, t4[0], t0, image, tga);
+      filledtoptriangle(t2, t1, t4[0], image, color);
+      filledbottomtriangle(t1, t4[0], t0, image, color);
       
     }
 }
@@ -302,7 +293,7 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 		}
 		
 		if (elements[0] == "f") {
-		  listElements.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3] );
+		  listElements.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
 		}
 	      }
 	    }
@@ -313,12 +304,56 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 	return coord;
 }
 
+std::vector<float> calculVector3(std::vector<float> p1, std::vector<float> p2) {
+
+  std::vector<float> vec12;
+  vec12.push_back( p2[0] - p1[0]);
+  vec12.push_back( p2[1] - p1[1]);
+  vec12.push_back( p2[2] - p1[2]);
+
+  return vec12;
+}
+
+std::vector<float> produitVectoriel(std::vector<float> v1, std::vector<float> v2) {
+
+  std::vector<float> vec12;
+  vec12.push_back( v1[1]*v2[2] - v1[2]*v2[1]);
+  vec12.push_back( v1[2]*v2[0] - v1[0]*v2[2]);
+  vec12.push_back( v1[0]*v2[1] - v1[1]*v2[0]);
+
+  return vec12;
+}
+
+float produitScalaire(std::vector<float> v1, std::vector<float> v2) {
+
+  float vec12 =  v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] ;
+
+  return vec12;
+}
+
+float norm(std::vector<float> v) {
+  return std::sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+void normalize(std::vector<float>& v) {
+
+  float n = 1/norm(v);
+  
+  v[0] = v[0] * (n);
+  v[1] = v[1] * (n);
+  v[2] = v[2] * (n);
+
+}
+
+
+
+
 
 int main(int argc, char** argv) {
   std::vector<std::string> listElements;
   TGAImage image(800, 800, TGAImage::RGB);
   //line(13,20,80,40,image,white);
-  std::vector<std::string> vect = read("african_head.obj", listElements);
+  std::vector<std::string> vect = read("diablo3_pose.obj", listElements);
 
   
   std::vector<std::string> elements;
@@ -326,40 +361,85 @@ int main(int argc, char** argv) {
   char delimiter = ' ';
 
   std::vector<std::string> d1, d2, d3, point;
+
+
+  TGAColor tga;
+
   
-    for (int i=0; i < listElements.size() ; i++) { 
-      elements = split(listElements[i], delimiter);
+  for (int i=0; i < listElements.size() ; i++) { 
+    elements = split(listElements[i], delimiter);
+    std::vector<float> p1, p2, p3;
 
-      d1 = split(elements[0].c_str(), '/') ;
-      d2 = split(elements[1].c_str(), '/');
-      d3 = split(elements[2].c_str(), '/');
+    d1 = split(elements[0].c_str(), '/') ;
+    d2 = split(elements[1].c_str(), '/');
+    d3 = split(elements[2].c_str(), '/');
 
-      point = split(vect[ atoi (d1[0].c_str()) - 1 ], delimiter);
-      int x0 = (atof( point[0].c_str()) +1.)*width/2.; 
-      int y0 = (atof( point[1].c_str()) +1.)*height/2.; 
+    point = split(vect[ atoi (d1[0].c_str()) - 1 ], delimiter);
+    int x0 = (atof( point[0].c_str()) +1.)*width/2.; 
+    int y0 = (atof( point[1].c_str()) +1.)*height/2.; 
 
-      point = split(vect[ atoi (d2[0].c_str()) - 1 ], delimiter);
-      int x1 = (atof( point[0].c_str()) +1.)*width/2.; 
-      int y1 = (atof( point[1].c_str()) +1.)*height/2.; 
+    p1.push_back( atof( point[0].c_str() ));
+    p1.push_back( atof( point[1].c_str() ));
+    p1.push_back( atof( point[2].c_str() ));
+  
+    point = split(vect[ atoi (d2[0].c_str()) - 1 ], delimiter);
+    int x1 = (atof( point[0].c_str()) +1.)*width/2.; 
+    int y1 = (atof( point[1].c_str()) +1.)*height/2.; 
 
-      point = split(vect[ atoi (d3[0].c_str()) - 1 ], delimiter);
-      int x2 = (atof( point[0].c_str()) +1.)*width/2.; 
-      int y2 = (atof( point[1].c_str()) +1.)*height/2.; 
+    p2.push_back( atof( point[0].c_str() ));
+    p2.push_back( atof( point[1].c_str() ));
+    p2.push_back( atof( point[2].c_str() ));
+  
 
-      line( x0, y0, x1, y1, image, white);
+    point = split(vect[ atoi (d3[0].c_str()) - 1 ], delimiter);
+    int x2 = (atof( point[0].c_str()) +1.)*width/2.; 
+    int y2 = (atof( point[1].c_str()) +1.)*height/2.; 
 
-      line( x2, y2, x1, y1, image, white);
-      line( x0, y0, x2, y2, image, white);
+    p3.push_back( atof( point[0].c_str() ));
+    p3.push_back( atof( point[1].c_str() ));
+    p3.push_back( atof( point[2].c_str() ));
+  
 
-      Vec2i t0[3] = {Vec2i(x0, y0),   Vec2i(x1, y1),  Vec2i(x2, y2)};
-      dessin(t0[0], t0[1], t0[2], image, white);
+    //line( x0, y0, x1, y1, image, white);
+
+    //line( x2, y2, x1, y1, image, white);
+    //line( x0, y0, x2, y2, image, white);
+
+    Vec2i t0[3] = {Vec2i(x0, y0),   Vec2i(x1, y1),  Vec2i(x2, y2)};
+
+    std::vector<float> light;
+    light.push_back(0);
+    light.push_back(0);
+    light.push_back(-1);
+      
+    //std::vector<Vec2i> sort = sortVectorSide(t0[0], t0[1], t0[2]);
+
+    std::vector<float> vec12 = calculVector3(p1, p3);
+    std::vector<float> vec13 = calculVector3(p1, p2);
+    
+    std::vector<float> n = produitVectoriel(vec12, vec13);
+
+    normalize(n);
+
+    float intensite = produitScalaire(n,light);
+
+    if (intensite > 0) {
+      
+      tga = TGAColor( intensite * 255, intensite * 255,  intensite * 255, 255);
+
+      dessin(t0[0], t0[1], t0[2], image, tga);
     }
+
+    
+
+    
+  }
   
 
   Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(150, 160),  Vec2i(70, 80)};
   //filledtoptriangle(t0[0], t0[1], t0[2], image, red); 
 
- // dessin(t0[0], t0[1], t0[2], image, red);
+  //dessin(t0[0], t0[1], t0[2], image, red);
 
 
   image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
