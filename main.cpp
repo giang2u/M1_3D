@@ -8,13 +8,15 @@
 #include <sstream>
 #include <cstdlib>
 #include <math.h>  
+#include <limits>
 #include "geometry.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const int width = 800;
 const int height = 800;
-
+const int width_tex = 1024;
+const int height_tex = 1024;
 
 
 std::vector<std::string> split(const std::string &chaine, char delimiteur)
@@ -100,11 +102,11 @@ void line(Vec2i t0, Vec2i t1, TGAImage &image, TGAColor color) {
 
 
 
-void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) { 
+/*void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) { 
     line(t0, t1, image, color); 
     line(t1, t2, image, color); 
     line(t2, t0, image, color); 
-}
+}*/
 
 void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
   if (t0.y > t1.y) {
@@ -278,7 +280,7 @@ void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 }
 
 
-std::vector<std::string> read(std::string name, std::vector<std::string>& listElements) {
+std::vector<std::string> read(std::string name, std::vector<std::string>& listElements,  std::vector<std::string>& listTexture) {
   std::vector<std::string> coord;
   std::ifstream fichier(name.c_str());  // on ouvre le fichier en lecture
         if(fichier)  // si l'ouverture a réussi
@@ -290,6 +292,9 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 	      if (elements.size() == 4) {
 		if (elements[0] == "v") {
 		  coord.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
+		}
+		if (elements[0].compare("vt") ) {
+		  listTexture.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
 		}
 		
 		if (elements[0] == "f") {
@@ -303,6 +308,8 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 	  std::cerr << "Impossible d'ouvrir le fichier !" << std::endl;
 	return coord;
 }
+
+
 
 std::vector<float> calculVector3(std::vector<float> p1, std::vector<float> p2) {
 
@@ -345,17 +352,67 @@ void normalize(std::vector<float>& v) {
 
 }
 
+Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
+
+  std::vector<float> v1,v2;
+  v1.push_back(t2.x - t0.x);
+  v1.push_back(t1.x - t0.x);
+  v1.push_back(t0.x - p.x);
+ 
+  v2.push_back(t2.y - t0.y);
+  v2.push_back(t1.y - t0.y);
+  v2.push_back(t0.y - p.y);
+
+  std::vector<float> v3 = produitVectoriel(v1, v2);
+  if (std::abs((int)v3[2])<1) return Vec3f(-1,1,1);
+ 
+  return Vec3f(1.f-(v3[0]+v3[1])/v3[2], v3[1]/v3[2], v3[0]/v3[2]); 
+}
 
 
+void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) { 
+  Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
+  Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+  Vec2f clamp(image.get_width()-1, image.get_height()-1); 
+  for (int i=0; i<3; i++) { 
+    for (int j=0; j<2; j++) { 
+      bboxmin[j] = std::max(0.f,        std::min(bboxmin[j], pts[i][j])); 
+      bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j])); 
+    } 
+  } 
+  Vec3f P; 
+  for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) { 
+    for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) { 
+      Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P); 
+      if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue; 
+      P.z = 0;
+      for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
+      if (zbuffer[int(P.x+P.y*width)]<P.z) {
+	zbuffer[int(P.x+P.y*width)] = P.z;
+	image.set(P.x, P.y, color);
+      }
+    } 
+  } 
+} 
 
 
-int main(int argc, char** argv) {
-  std::vector<std::string> listElements;
-  TGAImage image(800, 800, TGAImage::RGB);
-  //line(13,20,80,40,image,white);
-  std::vector<std::string> vect = read("diablo3_pose.obj", listElements);
+TGAColor interpolate(Vec3f *pts, Vec3f p) {
+
+  float d1 = std::sqrt( pow(pts[0][0] - p.x , 2) + pow( pts[0][1] - p.y, 2));
+  float d2 = std::sqrt( pow(pts[1][0] - p.x , 2) + pow( pts[1][1] - p.y, 2));
+  float d3 = std::sqrt( pow(pts[2][0] - p.x , 2) + pow( pts[2][1] - p.y, 2));
 
   
+  return white;
+
+}
+
+int main(int argc, char** argv) {
+  std::vector<std::string> listElements, listTexture;
+  TGAImage image(800, 800, TGAImage::RGB);
+  //line(13,20,80,40,image,white);
+  std::vector<std::string> vect = read("african_head.obj", listElements, listTexture);
+
   std::vector<std::string> elements;
 
   char delimiter = ' ';
@@ -363,13 +420,13 @@ int main(int argc, char** argv) {
   std::vector<std::string> d1, d2, d3, point;
 
 
-  TGAColor tga;
 
+  TGAColor tga;
+  float *zbuffer = new float[width*height];
   
   for (int i=0; i < listElements.size() ; i++) { 
     elements = split(listElements[i], delimiter);
     std::vector<float> p1, p2, p3;
-
     d1 = split(elements[0].c_str(), '/') ;
     d2 = split(elements[1].c_str(), '/');
     d3 = split(elements[2].c_str(), '/');
@@ -377,6 +434,7 @@ int main(int argc, char** argv) {
     point = split(vect[ atoi (d1[0].c_str()) - 1 ], delimiter);
     int x0 = (atof( point[0].c_str()) +1.)*width/2.; 
     int y0 = (atof( point[1].c_str()) +1.)*height/2.; 
+    int z0 = (atof( point[2].c_str()) +1.)*height/2.; 
 
     p1.push_back( atof( point[0].c_str() ));
     p1.push_back( atof( point[1].c_str() ));
@@ -385,6 +443,7 @@ int main(int argc, char** argv) {
     point = split(vect[ atoi (d2[0].c_str()) - 1 ], delimiter);
     int x1 = (atof( point[0].c_str()) +1.)*width/2.; 
     int y1 = (atof( point[1].c_str()) +1.)*height/2.; 
+    int z1 = (atof( point[2].c_str()) +1.)*height/2.; 
 
     p2.push_back( atof( point[0].c_str() ));
     p2.push_back( atof( point[1].c_str() ));
@@ -394,18 +453,33 @@ int main(int argc, char** argv) {
     point = split(vect[ atoi (d3[0].c_str()) - 1 ], delimiter);
     int x2 = (atof( point[0].c_str()) +1.)*width/2.; 
     int y2 = (atof( point[1].c_str()) +1.)*height/2.; 
+    int z2 = (atof( point[2].c_str()) +1.)*height/2.; 
 
     p3.push_back( atof( point[0].c_str() ));
     p3.push_back( atof( point[1].c_str() ));
     p3.push_back( atof( point[2].c_str() ));
-  
+
+
+    point = split( listTexture[ atoi (d1[1].c_str()) - 1 ], delimiter);
+    Vec3f tex1( (atof( point[0].c_str())+1.0)*width/2, (atof( point[1].c_str())+1.0)*width/2, (atof( point[2].c_str())+1.0)*width/2 );
+    /*
+    point = split(listTexture[ atoi (d2[1].c_str()) - 1 ], delimiter);
+    Vec3f tex2(atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()));
+
+    point = split(listTexture[ atoi (d3[1].c_str()) - 1 ], delimiter);
+    Vec3f tex3(atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()));
+    */
 
     //line( x0, y0, x1, y1, image, white);
-
     //line( x2, y2, x1, y1, image, white);
     //line( x0, y0, x2, y2, image, white);
 
-    Vec2i t0[3] = {Vec2i(x0, y0),   Vec2i(x1, y1),  Vec2i(x2, y2)};
+
+    Vec3f t0[3] = {Vec3f(x0, y0, z0),   Vec3f(x1, y1, z1),  Vec3f(x2, y2, z2)};
+
+
+    Vec3f v = barycentric(t0[0], t0[1], t0[2], tex1);
+    
 
     std::vector<float> light;
     light.push_back(0);
@@ -426,8 +500,9 @@ int main(int argc, char** argv) {
     if (intensite > 0) {
       
       tga = TGAColor( intensite * 255, intensite * 255,  intensite * 255, 255);
-
-      dessin(t0[0], t0[1], t0[2], image, tga);
+      tga = TGAColor( v.x*width_tex*height_tex, v.y*width_tex*height_tex, v.z*width_tex*height_tex, 255);
+      //dessin(t0[0], t0[1], t0[2], image, tga);
+      triangle(t0, zbuffer, image, tga);
     }
 
     
