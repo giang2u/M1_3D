@@ -15,8 +15,37 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const int width = 800;
 const int height = 800;
-const int width_tex = 1024;
-const int height_tex = 1024;
+const int depth  = 255;
+
+int *zbuffer = NULL;
+Vec3f light_dir(0,0,-1);
+Vec3f camera(0,0,3);
+
+Vec3f m2v(Matrix m) {
+    return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
+}
+
+Matrix v2m(Vec3f v) {
+    Matrix m(4, 1);
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+
+Matrix viewport(int x, int y, int w, int h) {
+    Matrix m = Matrix::identity(4);
+    m[0][3] = x+w/2.f;
+    m[1][3] = y+h/2.f;
+    m[2][3] = depth/2.f;
+
+    m[0][0] = w/2.f;
+    m[1][1] = h/2.f;
+    m[2][2] = depth/2.f;
+    return m;
+}
+
 
 
 std::vector<std::string> split(const std::string &chaine, char delimiteur)
@@ -131,19 +160,19 @@ void filledtoptriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor c
 	int dx = x2-x0;
 	int dy = y2-y0;
 	int rapport = std::abs( ceil( ((float)dx/(float)dy) - 0.5) );
-	if ( dy == 0) std::cout << rapport  << "    COUCOU" << std::endl; rapport = 0;
+	//if ( dy == 0) std::cout << rapport  << "    COUCOU" << std::endl; rapport = 0;
 	int derror2 = std::abs(dx)*2;
 	int error2 = 0;
-	int y = y0;
+	//int y = y0;
 
 	int dx2 = x2-x1;
 	int dy2 = y2-y1;
 	int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
 
-	if ( dy2 == 0) std::cout << rapport2 << "    COUCOU" << std::endl; rapport2 = 0;
+	//if ( dy2 == 0) std::cout << rapport2 << "    COUCOU" << std::endl; rapport2 = 0;
 	int derror3 = std::abs(dx2)*2;
 	int error3 = 0;
-	int yy = y2;
+	//int yy = y2;
 
 	int x = x0;
 	int xx = x1;
@@ -203,18 +232,16 @@ void filledbottomtriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColo
 	int dx = x2-x0;
 	int dy = y0-y2;
 	int rapport = std::abs(  ceil( ((float)dx/(float)dy) - 0.5) );
-	if ( dy == 0) std::cout << rapport  << "    COUCOU" << std::endl; rapport = 0;
 	int derror2 = std::abs(dx)*2;
 	int error2 = 0;
-	int y = y0;
+	//int y = y0;
 
 	int dx2 = x2-x1;
 	int dy2 = y1-y2;
 	int rapport2 = std::abs( ceil(  ((float)dx2/(float)dy2) - 0.5) );
-	if ( dy2 == 0) std::cout << rapport2  << "    COUCOU" << std::endl; rapport2 = 0;
 	int derror3 = std::abs(dx2)*2;
 	int error3 = 0;
-	int yy = y2;
+	//int yy = y2;
 
 	int x = x0;
 	int xx = x1;
@@ -293,12 +320,16 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 				if (elements[0] == "v") {
 					coord.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
 				}
-				if (elements[0].compare("vt") ) {
-					listTexture.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
-				}
+
 
 				if (elements[0] == "f") {
 					listElements.push_back(elements[1] + ' ' + elements[2] + ' ' + elements[3]);
+				}
+			}
+			if (elements.size() == 5) {
+				if (elements[0].compare("vt") == 0) {
+						listTexture.push_back(elements[2] + ' ' + elements[3] + ' ' + elements[4]);
+						//std::cout << elements[2] << "  " << elements[3] << ' ' << elements[4] << std::endl;
 				}
 			}
 		}
@@ -373,6 +404,7 @@ Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
 void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAImage &texture, Vec3f *text, float intensite, Vec3f *ptts) {
 
 	/* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
+	/*
 	if (pts[0].y > pts[1].y) {
 		std::swap(pts[0].y, pts[1].y);
 		std::swap(pts[0].x, pts[1].x);
@@ -396,8 +428,7 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 		std::swap(text[0].y, text[1].y);
 		std::swap(text[0].x, text[1].x);
 	}
-
-
+	*/
 	Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
 	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
 	Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -407,23 +438,11 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 			bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
 		}
 	}
+
 	Vec3f P;
 	for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
 		for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
-
 			Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
-
-			Vec3f pp = {P.x, P.y, P.z};
-			pp.x = pp.x*2/width ;
-			pp.y = pp.x*2/width ;
-
-			Vec3f tex_screen  = barycentric(text[0], text[1], text[2], pp);
-
-/*
-			Vec3f text1  = barycentric(ptts[0], ptts[1], ptts[2], text[0]);
-			Vec3f text2  = barycentric(ptts[0], ptts[1], ptts[2], text[1]);
-			Vec3f text3  = barycentric(ptts[0], ptts[1], ptts[2], text[2]);
-*/
 
 			if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
 			P.z = 0;
@@ -431,90 +450,33 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 			for (int i=0; i<3; i++) {
 				P.z += pts[i][2]*bc_screen[i];
 			}
-
-
-
-
-			float px = ( text[0].x* bc_screen[0]+ text[1].x* bc_screen[1] + text[2].x* bc_screen[2] )   ;
-			float py = ( text[0].y* bc_screen[0]+ text[1].y* bc_screen[1] + text[2].y* bc_screen[2] )   ;
-/*
-
-
-			float px = ( text[0].x* tex_screen[0]+ text[1].x* tex_screen[1] + text[2].x* tex_screen[2] )   ;
-			float py = ( text[0].y* tex_screen[0]+ text[1].y* tex_screen[1] + text[2].y* tex_screen[2] )   ;
-*/
-/*
-			float px1 = ptts[0].x* text1[0]+ ptts[1].x* text1[1] + ptts[2].x* text1[2];
-			float py1 =  ptts[0].y* text1[0]+ ptts[1].y* text1[1] + ptts[2].y* text1[2];
-
-			float px2 = ptts[0].x* text2[0]+ ptts[1].x* text2[1] + ptts[2].x* text2[2];
-			float py2 =  ptts[0].y* text2[0]+ ptts[1].y* text2[1] + ptts[2].y* text2[2];
-
-			float px3 = ptts[0].x* text3[0]+ ptts[1].x* text3[1] + ptts[2].x* text3[2];
-						float py3 =  ptts[0].y* text3[0]+ ptts[1].y* text3[1] + ptts[2].y* text3[2];
-
-			float px = ( px1 + px2 + px3 )   ;
-			float py = ( py1 + py2 + py3 )   ;
-*/
-
+			P.x = (int)P.x;
+			P.y = (int)P.y;
 			if (zbuffer[int(P.x+P.y*width)]<P.z) {
 				zbuffer[int(P.x+P.y*width)] = P.z;
-				TGAColor c = texture.get( ((text[0].x+1.0)*texture.get_width() /2 ), ( (text[0].y+1.0) * texture.get_height() /2 ));
-				if ((int)(c[0]) == 0 && (int)(c[1]) == 0 && (int)(c[2]) == 0) c = texture.get( ((text[1].x+1.0)*texture.get_width()/2 ), ( (text[1].y+1.0) * texture.get_height()/2 ));
-				if ((int)(c[0]) == 0 && (int)(c[1]) == 0 && (int)(c[2]) == 0) c = texture.get( ((text[2].x+1.0)*texture.get_width()/2 ), ( (text[2].y+1.0) * texture.get_height()/2 ));
 
-				//std::cout << (int)(c[0]) << "  " << (int)(c[1]) << "  " << (int)(c[2]) << std::endl;
-/*
-				c1 = texture.get( (text[0].x+1.0)*texture.get_width() /2, (text[0].y+1.0)*texture.get_height() /2 );
-				c2 = texture.get( (text[1].x+1.0)*texture.get_width() /2, (text[1].y+1.0)*texture.get_height() /2 );
-				c3 = texture.get( (text[2].x+1.0)*texture.get_width() /2, (text[2].y+1.0)*texture.get_height() /2 );
+				float px1 = text[0].x* bc_screen[0]+ text[1].x* bc_screen[1] + text[2].x* bc_screen[2];
+				float py1 = text[0].y* bc_screen[0]+ text[1].y* bc_screen[1] + text[2].y* bc_screen[2];
+				//std::cout <<  px1 << "  "  <<  py1  << "    BC     " << bc_screen[0] << "  " << bc_screen[1] << "  " << bc_screen[2] <<  std::endl;
 
-				//std::cout << (float)(c1[0]) * bc_screen[0] << "   " << (float)(c2[0]) << "  " << (float)(c3[0]) << std::endl;
+				// cetait inverser en y donc jinverse pour avoir la bonne coordonnee
+				py1 = 1 - py1;
 
-
-				float bbb = ( (float)(c1[0])  * bc_screen[0] + (float)(c2[0])  * bc_screen[1] + (float)(c3[0])  * bc_screen[2] ) ;
-				float ggg = ( (float)(c1[1])  * bc_screen[0] + (float)(c2[1])  * bc_screen[1] + (float)(c3[1])  * bc_screen[2] ) ;
-				float rrr = ( (float)(c1[2])  * bc_screen[0] + (float)(c2[2])  * bc_screen[1] + (float)(c3[2])  * bc_screen[2] ) ;
-
-*/
-/*
-				char bbb = ( c1[0]   + c2[0]   + c3[0]   )  ;
-								char ggg = (c1[1]   + c2[1]  + c3[1]   )  ;
-								char rrr = (c1[2]   + c2[2]   + c3[2]   )  ;
-
-
-char bbb = (c1[0]  * bc_screen[0] + c2[0]  * bc_screen[1] + c3[0]  * bc_screen[2] )  ;
-				char ggg = (c1[1]  * bc_screen[0] + c2[1]  * bc_screen[1] + c3[1]  * bc_screen[2] )  ;
-				char rrr = (c1[2]  * bc_screen[0] + c2[2]  * bc_screen[1] + c3[2]  * bc_screen[2] )  ;
-*/
-
-				//TGAColor cc = TGAColor(bbb * intensite, ggg * intensite , rrr * intensite );
-				//TGAColor c = TGAColor(255 * intensite,  255* intensite,   255* intensite, 255);
-				image.set(P.x, P.y, c * intensite);
+				TGAColor c = texture.get( px1 * texture.get_width() ,   py1 * texture.get_height() );
+				image.set(P.x, P.y, c * intensite );
 			}
 		}
 	}
 } 
 
 
-TGAColor interpolate(Vec3f *pts, Vec3f p) {
-
-	float d1 = std::sqrt( pow(pts[0][0] - p.x , 2) + pow( pts[0][1] - p.y, 2));
-	float d2 = std::sqrt( pow(pts[1][0] - p.x , 2) + pow( pts[1][1] - p.y, 2));
-	float d3 = std::sqrt( pow(pts[2][0] - p.x , 2) + pow( pts[2][1] - p.y, 2));
-
-
-	return white;
-
-}
-
 int main(int argc, char** argv) {
 	std::vector<std::string> listElements, listTexture;
 	TGAImage image(800, 800, TGAImage::RGB);
 	TGAImage texture;
-	texture.read_tga_file("african_head_diffuse.tga");
+	texture.read_tga_file("diablo3_pose_diffuse.tga");
 	//line(13,20,80,40,image,white);
-	std::vector<std::string> vect = read("african_head.obj", listElements, listTexture);
+	std::vector<std::string> vect = read("diablo3_pose.obj", listElements, listTexture);
 
 	std::vector<std::string> elements;
 
@@ -524,7 +486,11 @@ int main(int argc, char** argv) {
 
 	TGAColor tga;
 	float *zbuffer = new float[width*height];
-	Vec3f *cbuffer = new Vec3f[width*height];
+
+	Matrix Projection = Matrix::identity(4);
+	Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+	Projection[3][2] = -1.f/camera.z;
+
 
 	for (int i=0; i < listElements.size() ; i++) {
 		elements = split(listElements[i], delimiter);
@@ -536,61 +502,51 @@ int main(int argc, char** argv) {
 		point = split(vect[ atoi (d1[0].c_str()) - 1 ], delimiter);
 		int x0 = (atof( point[0].c_str()) +1.)*width/2.;
 		int y0 = (atof( point[1].c_str()) +1.)*height/2.;
-		int z0 = (atof( point[2].c_str()) +1.)*height/2.;
+		int z0 = (atof( point[2].c_str()) +1.)*depth/2.;
 
 		p1 = { atof( point[0].c_str() ), atof( point[1].c_str()) , atof( point[2].c_str()) };
 
 		point = split(vect[ atoi (d2[0].c_str()) - 1 ], delimiter);
 		int x1 = (atof( point[0].c_str()) +1.)*width/2.;
 		int y1 = (atof( point[1].c_str()) +1.)*height/2.;
-		int z1 = (atof( point[2].c_str()) +1.)*height/2.;
+		int z1 = (atof( point[2].c_str()) +1.)*depth/2.;
 
 		p2 = { atof( point[0].c_str() ), atof( point[1].c_str()) , atof( point[2].c_str()) };
 
 		point = split(vect[ atoi (d3[0].c_str()) - 1 ], delimiter);
 		int x2 = (atof( point[0].c_str()) +1.)*width/2.;
 		int y2 = (atof( point[1].c_str()) +1.)*height/2.;
-		int z2 = (atof( point[2].c_str()) +1.)*height/2.;
+		int z2 = (atof( point[2].c_str()) +1.)*depth/2.;
 
 		p3 = { atof( point[0].c_str() ), atof( point[1].c_str()) , atof( point[2].c_str()) };
+
+
 
 		Vec3f p0[3] = {p1, p2, p3};
 
 		point = split( listTexture[ atoi (d1[1].c_str()) - 1 ], delimiter);
-		//Vec3f tex1( (atof( point[0].c_str())+1.0)*width_tex/2, (atof( point[1].c_str())+1.0)*height_tex/2, (atof( point[2].c_str())+1.0)*width_tex/2 );
 		Vec3f tex1( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
 
 		point = split(listTexture[ atoi (d2[1].c_str()) - 1 ], delimiter);
-		//Vec3f tex2( (atof( point[0].c_str())+1.0)*width_tex/2, (atof( point[1].c_str())+1.0)*height_tex/2, (atof( point[2].c_str())+1.0)*width_tex/2 );
 		Vec3f tex2( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
 		point = split(listTexture[ atoi (d3[1].c_str()) - 1 ], delimiter);
-		//Vec3f tex3( (atof( point[0].c_str())+1.0)*width_tex/2, (atof( point[1].c_str())+1.0)*height_tex/2, (atof( point[2].c_str())+1.0)*width_tex/2 );
 		Vec3f tex3( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
 		Vec3f text[3] = { tex1, tex2, tex3 };
-		//line( x0, y0, x1, y1, image, white);
-		//line( x2, y2, x1, y1, image, white);
-		//line( x0, y0, x2, y2, image, white);
 
 
-		Vec3f t0[3] = {Vec3f(x0, y0, z0),   Vec3f(x1, y1, z1),  Vec3f(x2, y2, z2)};
+		//Vec3f t0[3] = {Vec3f(x0, y0, z0),   Vec3f(x1, y1, z1),  Vec3f(x2, y2, z2)};
+		Vec3f t0[3] = { m2v(ViewPort*Projection*v2m(p1)),  m2v(ViewPort*Projection*v2m(p2)),  m2v(ViewPort*Projection*v2m(p3)) };
 
-		/*
-    Vec3f v = barycentric(t0[0], t0[1], t0[2], tex1);
-    v.x = v.x * width;
-    v.y = v.y * height;
-    v.z = v.z * width;
-		 */
-
+		//std::cout << t0[0] << std::endl;
 
 		std::vector<float> light;
 		light.push_back(0);
 		light.push_back(0);
 		light.push_back(-1);
 
-		//std::vector<Vec2i> sort = sortVectorSide(t0[0], t0[1], t0[2]);
 
 		std::vector<float> vec12 = calculVector3(p1, p3);
 		std::vector<float> vec13 = calculVector3(p1, p2);
@@ -603,9 +559,8 @@ int main(int argc, char** argv) {
 
 		if (intensite > 0) {
 
+			//std::cout << intensite << std::endl;
 			tga = TGAColor( intensite * 255, intensite * 255,  intensite * 255, 255);
-			//tga = texture.get( tex1.x, tex1.y );
-			//dessin(t0[0], t0[1], t0[2], image, tga);
 			triangle(t0, zbuffer, image, tga, texture, text, intensite, p0);
 		}
 
@@ -614,12 +569,11 @@ int main(int argc, char** argv) {
 
 	}
 
-
+/*
 	Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(150, 160),  Vec2i(70, 80)};
-	//filledtoptriangle(t0[0], t0[1], t0[2], image, red);
-
-	//dessin(t0[0], t0[1], t0[2], image, red);
-
+	filledtoptriangle(t0[0], t0[1], t0[2], image, red);
+	dessin(t0[0], t0[1], t0[2], image, red);
+*/
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	image.write_tga_file("output.tga");
