@@ -1,23 +1,25 @@
-SYSCONF_LINK = g++
-CPPFLAGS     = -Wall -Wextra -Weffc++ -pedantic -std=c++98
-LDFLAGS      = -O3
-LIBS         = -lm
+PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-DESTDIR = ./
-TARGET  = main
+OBJS = M1_3D.o
 
-OBJECTS := $(patsubst %.cpp,%.o,$(wildcard *.cpp))
+ifeq ($(BUILD_MODE),debug)
+	CFLAGS += -g
+else ifeq ($(BUILD_MODE),run)
+	CFLAGS += -O2
+else
+	$(error Build mode $(BUILD_MODE) not supported by this Makefile)
+endif
 
-all: $(DESTDIR)$(TARGET)
+all:	M1_3D
 
-$(DESTDIR)$(TARGET): $(OBJECTS)
-	$(SYSCONF_LINK) -Wall $(LDFLAGS) -o $(DESTDIR)$(TARGET) $(OBJECTS) $(LIBS)
+M1_3D:	$(OBJS)
+	$(CXX) -o $@ $^
 
-$(OBJECTS): %.o: %.cpp
-	$(SYSCONF_LINK) -Wall $(CPPFLAGS) -c $(CFLAGS) $< -o $@
+%.o:	$(PROJECT_ROOT)%.cpp
+	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
+
+%.o:	$(PROJECT_ROOT)%.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	-rm -f $(OBJECTS)
-	-rm -f $(TARGET)
-	-rm -f *.tga
-
+	rm -fr M1_3D $(OBJS)

@@ -18,8 +18,85 @@ const int height = 800;
 const int depth  = 255;
 
 int *zbuffer = NULL;
-Vec3f light_dir(0,0,-1);
+Vec3f light_dir(1,-1,1);
+Vec3f eye_center(0,0,3);
 Vec3f camera(0,0,3);
+Vec3f center(0,0,0);
+
+std::vector<float> calculVector3(Vec3f p1, Vec3f p2) {
+
+	std::vector<float> vec12;
+	vec12.push_back( p2[0] - p1[0]);
+	vec12.push_back( p2[1] - p1[1]);
+	vec12.push_back( p2[2] - p1[2]);
+
+	return vec12;
+}
+
+std::vector<float> produitVectoriel(std::vector<float> v1, std::vector<float> v2) {
+
+	std::vector<float> vec12;
+	vec12.push_back( v1[1]*v2[2] - v1[2]*v2[1]);
+	vec12.push_back( v1[2]*v2[0] - v1[0]*v2[2]);
+	vec12.push_back( v1[0]*v2[1] - v1[1]*v2[0]);
+
+	return vec12;
+}
+
+Vec3f produitVectoriel(Vec3f v1, Vec3f v2) {
+
+	Vec3f vec12;
+	vec12.x = ( v1[1]*v2[2] - v1[2]*v2[1]);
+	vec12.y = ( v1[2]*v2[0] - v1[0]*v2[2]);
+	vec12.z = ( v1[0]*v2[1] - v1[1]*v2[0]);
+
+	return vec12;
+}
+
+
+float produitScalaire(std::vector<float> v1, std::vector<float> v2) {
+
+	float vec12 =  v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] ;
+
+	return vec12;
+}
+
+float produitScalaire(Vec3f v1, Vec3f v2) {
+
+	float vec12 =  v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] ;
+
+	return vec12;
+}
+
+float norm(std::vector<float> v) {
+	return std::sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+std::vector<float> normalize(std::vector<float>& v) {
+
+	float n = 1/norm(v);
+
+	v[0] = v[0] * (n);
+	v[1] = v[1] * (n);
+	v[2] = v[2] * (n);
+
+	return v;
+}
+
+float norm(Vec3f v) {
+	return std::sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+Vec3f normalize(Vec3f v) {
+
+	float n = 1/norm(v);
+
+	v[0] = v[0] * (n);
+	v[1] = v[1] * (n);
+	v[2] = v[2] * (n);
+
+	return v;
+}
 
 Vec3f m2v(Matrix m) {
     return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
@@ -46,6 +123,19 @@ Matrix viewport(int x, int y, int w, int h) {
     return m;
 }
 
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+    Vec3f z = normalize(eye_center);
+    Vec3f x = normalize(produitVectoriel(up,z));
+    Vec3f y = normalize(produitVectoriel(z,x));
+    Matrix res = Matrix::identity(4);
+    for (int i=0; i<3; i++) {
+        res[0][i] = x[i];
+        res[1][i] = y[i];
+        res[2][i] = z[i];
+        res[i][3] = -center[i];
+    }
+    return res;
+}
 
 
 std::vector<std::string> split(const std::string &chaine, char delimiteur)
@@ -307,7 +397,7 @@ void dessin(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 }
 
 
-std::vector<std::string> read(std::string name, std::vector<std::string>& listElements,  std::vector<std::string>& listTexture) {
+std::vector<std::string> read(std::string name, std::vector<std::string>& listElements,  std::vector<std::string>& listTexture, std::vector<std::string>& listShade) {
 	std::vector<std::string> coord;
 	std::ifstream fichier(name.c_str());  // on ouvre le fichier en lecture
 	if(fichier)  // si l'ouverture a réussi
@@ -331,6 +421,10 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 						listTexture.push_back(elements[2] + ' ' + elements[3] + ' ' + elements[4]);
 						//std::cout << elements[2] << "  " << elements[3] << ' ' << elements[4] << std::endl;
 				}
+				if (elements[0].compare("vn") == 0) {
+						listShade.push_back(elements[2] + ' ' + elements[3] + ' ' + elements[4]);
+						//std::cout << elements[0] << "  " << elements[2] << "  " << elements[3] << ' ' << elements[4] << std::endl;
+				}
 			}
 		}
 		fichier.close();  // on ferme le fichier
@@ -342,46 +436,7 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 
 
 
-std::vector<float> calculVector3(Vec3f p1, Vec3f p2) {
 
-	std::vector<float> vec12;
-	vec12.push_back( p2[0] - p1[0]);
-	vec12.push_back( p2[1] - p1[1]);
-	vec12.push_back( p2[2] - p1[2]);
-
-	return vec12;
-}
-
-std::vector<float> produitVectoriel(std::vector<float> v1, std::vector<float> v2) {
-
-	std::vector<float> vec12;
-	vec12.push_back( v1[1]*v2[2] - v1[2]*v2[1]);
-	vec12.push_back( v1[2]*v2[0] - v1[0]*v2[2]);
-	vec12.push_back( v1[0]*v2[1] - v1[1]*v2[0]);
-
-	return vec12;
-}
-
-float produitScalaire(std::vector<float> v1, std::vector<float> v2) {
-
-	float vec12 =  v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] ;
-
-	return vec12;
-}
-
-float norm(std::vector<float> v) {
-	return std::sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-}
-
-void normalize(std::vector<float>& v) {
-
-	float n = 1/norm(v);
-
-	v[0] = v[0] * (n);
-	v[1] = v[1] * (n);
-	v[2] = v[2] * (n);
-
-}
 
 Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
 
@@ -403,32 +458,6 @@ Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
 
 void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAImage &texture, Vec3f *text, float intensite, Vec3f *ptts) {
 
-	/* at first sort the three vertices by y-coordinate descending so t2 is the topmost vertice */
-	/*
-	if (pts[0].y > pts[1].y) {
-		std::swap(pts[0].y, pts[1].y);
-		std::swap(pts[0].x, pts[1].x);
-
-		std::swap(text[0].y, text[1].y);
-		std::swap(text[0].x, text[1].x);
-	}
-	if (pts[1].y > pts[2].y)  {
-		std::swap(pts[1].y, pts[2].y);
-		std::swap(pts[1].x, pts[2].x);
-
-
-		std::swap(text[1].y, text[2].y);
-		std::swap(text[1].x, text[2].x);
-	}
-	if (pts[0].y > pts[1].y) {
-		std::swap(pts[0].y, pts[1].y);
-		std::swap(pts[0].x, pts[1].x);
-
-
-		std::swap(text[0].y, text[1].y);
-		std::swap(text[0].x, text[1].x);
-	}
-	*/
 	Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
 	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
 	Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -462,8 +491,22 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 				// cetait inverser en y donc jinverse pour avoir la bonne coordonnee
 				py1 = 1 - py1;
 
-				TGAColor c = texture.get( px1 * texture.get_width() ,   py1 * texture.get_height() );
-				image.set(P.x, P.y, c * intensite );
+				float ya = pts[1].y + (P.x - pts[1].x) * (pts[2].y - pts[1].y) / (pts[2].x - pts[1].x);
+
+				float yb = pts[2].y + (P.x - pts[2].x) * (pts[3].y - pts[2].y) / (pts[3].x - pts[2].x);
+
+				//float Ia =  ((ya - pts[1].y) / (pts[0].y - pts[1].y)  ) * bc_screen[0] +  (( pts[0].y - ya) / (pts[0].y - pts[1].y)  ) * bc_screen[1] ;
+				float Ia =  ((P.x - pts[1].x) / (pts[0].x - pts[1].x)  ) * bc_screen[0] +  (( pts[0].x - P.x) / (pts[0].x - pts[1].x)  ) * bc_screen[1] ;
+
+				//float Ib =  ((yb - pts[1].y) / (pts[2].y - pts[1].y)  ) * bc_screen[2] +  (( pts[2].y - yb) / (pts[2].y - pts[1].y)  ) * bc_screen[1] ;
+				float Ib =  ((P.x - pts[1].x) / (pts[2].x - pts[1].x)  ) * bc_screen[2] +  (( pts[2].x - P.x) / (pts[2].x - pts[1].x)  ) * bc_screen[1] ;
+
+				float Ip = ((yb - P.y) / (yb - ya)) * Ia + ((P.y - ya) / (yb - ya)) * Ib;
+
+
+				//TGAColor c = texture.get( px1 * texture.get_width() ,   py1 * texture.get_height() );
+				TGAColor c = texture.get( px1 * texture.get_width()  ,   py1 * texture.get_height() );
+				image.set(P.x, P.y, c * Ip );
 			}
 		}
 	}
@@ -471,12 +514,12 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 
 
 int main(int argc, char** argv) {
-	std::vector<std::string> listElements, listTexture;
+	std::vector<std::string> listElements, listTexture, listShade;
 	TGAImage image(800, 800, TGAImage::RGB);
 	TGAImage texture;
-	texture.read_tga_file("diablo3_pose_diffuse.tga");
+	texture.read_tga_file("african_head_diffuse.tga");
 	//line(13,20,80,40,image,white);
-	std::vector<std::string> vect = read("diablo3_pose.obj", listElements, listTexture);
+	std::vector<std::string> vect = read("african_head.obj", listElements, listTexture, listShade);
 
 	std::vector<std::string> elements;
 
@@ -487,10 +530,12 @@ int main(int argc, char** argv) {
 	TGAColor tga;
 	float *zbuffer = new float[width*height];
 
+	Matrix ModelView  = lookat(eye_center, center, Vec3f(0,1,0));
 	Matrix Projection = Matrix::identity(4);
 	Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
-	Projection[3][2] = -1.f/camera.z;
-
+	//Projection[3][2] = -1.f/camera.z;
+	Projection[3][2] = -1.f/ norm(eye_center);
+	//Matrix model;
 
 	for (int i=0; i < listElements.size() ; i++) {
 		elements = split(listElements[i], delimiter);
@@ -524,6 +569,7 @@ int main(int argc, char** argv) {
 
 		Vec3f p0[3] = {p1, p2, p3};
 
+
 		point = split( listTexture[ atoi (d1[1].c_str()) - 1 ], delimiter);
 		Vec3f tex1( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
@@ -537,8 +583,24 @@ int main(int argc, char** argv) {
 		Vec3f text[3] = { tex1, tex2, tex3 };
 
 
+		point = split( listShade[ atoi (d1[2].c_str()) - 1 ], delimiter);
+		Vec3f shade1( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
+
+
+				point = split(listShade[ atoi (d2[2].c_str()) - 1 ], delimiter);
+				Vec3f shade2( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
+
+				point = split(listShade[ atoi (d3[2].c_str()) - 1 ], delimiter);
+				Vec3f shade3( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
+
+				Vec3f shade[3] = { shade1, shade2, shade3 };
+
 		//Vec3f t0[3] = {Vec3f(x0, y0, z0),   Vec3f(x1, y1, z1),  Vec3f(x2, y2, z2)};
-		Vec3f t0[3] = { m2v(ViewPort*Projection*v2m(p1)),  m2v(ViewPort*Projection*v2m(p2)),  m2v(ViewPort*Projection*v2m(p3)) };
+		//Projetction[]
+		//Vec3f rot1 = m2v(ViewPort*Projection*v2m(p1));
+		Vec3f t0[3] = { m2v(ViewPort*Projection*ModelView*v2m(p1)),  m2v(ViewPort*Projection*ModelView*v2m(p2)),  m2v(ViewPort*Projection*ModelView*v2m(p3)) };
+
+
 
 		//std::cout << t0[0] << std::endl;
 
@@ -560,7 +622,7 @@ int main(int argc, char** argv) {
 		if (intensite > 0) {
 
 			//std::cout << intensite << std::endl;
-			tga = TGAColor( intensite * 255, intensite * 255,  intensite * 255, 255);
+			tga = TGAColor( 255,  255,  255, 255);
 			triangle(t0, zbuffer, image, tga, texture, text, intensite, p0);
 		}
 
