@@ -18,7 +18,7 @@ const int height = 800;
 const int depth  = 255;
 
 int *zbuffer = NULL;
-Vec3f light_dir(1,-1,1);
+Vec3f light_dir(0,0,-1);
 Vec3f eye_center(0,0,3);
 Vec3f camera(0,0,3);
 Vec3f center(0,0,0);
@@ -98,6 +98,7 @@ Vec3f normalize(Vec3f v) {
 	return v;
 }
 
+
 Vec3f m2v(Matrix m) {
     return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
 }
@@ -136,6 +137,8 @@ Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
     }
     return res;
 }
+
+
 
 
 std::vector<std::string> split(const std::string &chaine, char delimiteur)
@@ -435,9 +438,6 @@ std::vector<std::string> read(std::string name, std::vector<std::string>& listEl
 }
 
 
-
-
-
 Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
 
 	std::vector<float> v1,v2;
@@ -456,7 +456,7 @@ Vec3f barycentric(Vec3f t0, Vec3f t1, Vec3f t2, Vec3f p) {
 }
 
 
-void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAImage &texture, Vec3f *text, float intensite, Vec3f *ptts) {
+void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAImage &texture, Vec3f *text, float intensite, Vec3f *ptts, float *inten) {
 
 	Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
 	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -486,11 +486,10 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 
 				float px1 = text[0].x* bc_screen[0]+ text[1].x* bc_screen[1] + text[2].x* bc_screen[2];
 				float py1 = text[0].y* bc_screen[0]+ text[1].y* bc_screen[1] + text[2].y* bc_screen[2];
-				//std::cout <<  px1 << "  "  <<  py1  << "    BC     " << bc_screen[0] << "  " << bc_screen[1] << "  " << bc_screen[2] <<  std::endl;
-
+		        
 				// cetait inverser en y donc jinverse pour avoir la bonne coordonnee
 				py1 = 1 - py1;
-
+				
 				float ya = pts[1].y + (P.x - pts[1].x) * (pts[2].y - pts[1].y) / (pts[2].x - pts[1].x);
 
 				float yb = pts[2].y + (P.x - pts[2].x) * (pts[3].y - pts[2].y) / (pts[3].x - pts[2].x);
@@ -502,11 +501,21 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 				float Ib =  ((P.x - pts[1].x) / (pts[2].x - pts[1].x)  ) * bc_screen[2] +  (( pts[2].x - P.x) / (pts[2].x - pts[1].x)  ) * bc_screen[1] ;
 
 				float Ip = ((yb - P.y) / (yb - ya)) * Ia + ((P.y - ya) / (yb - ya)) * Ib;
+				
 
+				float intensitee = inten[0] * bc_screen[0] + inten[1] * bc_screen[1] + inten[2] * bc_screen[2];
+				
+				TGAColor c = texture.get( px1 * texture.get_width() ,   py1 * texture.get_height() );
 
-				//TGAColor c = texture.get( px1 * texture.get_width() ,   py1 * texture.get_height() );
-				TGAColor c = texture.get( px1 * texture.get_width()  ,   py1 * texture.get_height() );
-				image.set(P.x, P.y, c * Ip );
+				Vec3f n = produitVectoriel((pts[1] - pts[0]), (pts[2] - pts[0]));
+
+				Vec3f u = n - light_dir;
+				Vec3f r = light_dir + u + u;
+
+				Vec3f spec = produitScalaire(eye , r);
+				
+
+				image.set(P.x, P.y, c * (-intensitee));
 			}
 		}
 	}
@@ -514,12 +523,12 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 
 
 int main(int argc, char** argv) {
-	std::vector<std::string> listElements, listTexture, listShade;
+  std::vector<std::string> listElements, listTexture, listShade;
 	TGAImage image(800, 800, TGAImage::RGB);
 	TGAImage texture;
-	texture.read_tga_file("african_head_diffuse.tga");
+	texture.read_tga_file("diablo3_pose_diffuse.tga");
 	//line(13,20,80,40,image,white);
-	std::vector<std::string> vect = read("african_head.obj", listElements, listTexture, listShade);
+	std::vector<std::string> vect = read("diablo3_pose.obj", listElements, listTexture, listShade);
 
 	std::vector<std::string> elements;
 
@@ -530,12 +539,14 @@ int main(int argc, char** argv) {
 	TGAColor tga;
 	float *zbuffer = new float[width*height];
 
+
 	Matrix ModelView  = lookat(eye_center, center, Vec3f(0,1,0));
+	Matrix R = Matrix::identity(4);
+	Matrix T = Matrix::identity(4);
 	Matrix Projection = Matrix::identity(4);
 	Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
-	//Projection[3][2] = -1.f/camera.z;
 	Projection[3][2] = -1.f/ norm(eye_center);
-	//Matrix model;
+
 
 	for (int i=0; i < listElements.size() ; i++) {
 		elements = split(listElements[i], delimiter);
@@ -569,7 +580,6 @@ int main(int argc, char** argv) {
 
 		Vec3f p0[3] = {p1, p2, p3};
 
-
 		point = split( listTexture[ atoi (d1[1].c_str()) - 1 ], delimiter);
 		Vec3f tex1( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
@@ -582,25 +592,35 @@ int main(int argc, char** argv) {
 
 		Vec3f text[3] = { tex1, tex2, tex3 };
 
-
 		point = split( listShade[ atoi (d1[2].c_str()) - 1 ], delimiter);
 		Vec3f shade1( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
 
-				point = split(listShade[ atoi (d2[2].c_str()) - 1 ], delimiter);
-				Vec3f shade2( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
+		point = split(listShade[ atoi (d2[2].c_str()) - 1 ], delimiter);
+		Vec3f shade2( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
-				point = split(listShade[ atoi (d3[2].c_str()) - 1 ], delimiter);
-				Vec3f shade3( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
+		point = split(listShade[ atoi (d3[2].c_str()) - 1 ], delimiter);
+		Vec3f shade3( atof( point[0].c_str()), atof( point[1].c_str()), atof( point[2].c_str()) );
 
-				Vec3f shade[3] = { shade1, shade2, shade3 };
+		Vec3f shade[3] = { shade1, shade2, shade3 };
+
+		Vec3f tt1 = normalize(shade1);
+	        Vec3f tt2 = normalize(shade2);	
+	        Vec3f tt3 = normalize(shade3);
+		float inten1 = produitScalaire(tt1, light_dir);
+		float inten2 = produitScalaire(tt2, light_dir);
+		float inten3 = produitScalaire(tt3, light_dir);
+
+		float inten[3] = {inten1, inten2, inten3};
+		
+		R[0][0] = R[2][2] = cos(2);
+		R[0][2] = -sin(2);
+		R[2][0] = sin(2);
+
+		T[0][3] = 2;
 
 		//Vec3f t0[3] = {Vec3f(x0, y0, z0),   Vec3f(x1, y1, z1),  Vec3f(x2, y2, z2)};
-		//Projetction[]
-		//Vec3f rot1 = m2v(ViewPort*Projection*v2m(p1));
 		Vec3f t0[3] = { m2v(ViewPort*Projection*ModelView*v2m(p1)),  m2v(ViewPort*Projection*ModelView*v2m(p2)),  m2v(ViewPort*Projection*ModelView*v2m(p3)) };
-
-
 
 		//std::cout << t0[0] << std::endl;
 
@@ -619,15 +639,12 @@ int main(int argc, char** argv) {
 
 		float intensite = produitScalaire(n,light);
 
-		if (intensite > 0) {
+		//	if (intensite > 0) {
 
-			//std::cout << intensite << std::endl;
-			tga = TGAColor( 255,  255,  255, 255);
-			triangle(t0, zbuffer, image, tga, texture, text, intensite, p0);
-		}
-
-
-
+		//std::cout << intensite << std::endl;
+		// tga = TGAColor( intensite * 255, intensite * 255,  intensite * 255, 255);
+		  triangle(t0, zbuffer, image, tga, texture, text, intensite, p0, inten);
+		  //	}
 
 	}
 
