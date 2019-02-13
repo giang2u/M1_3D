@@ -509,11 +509,12 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color, TGAIm
 
 				Vec3f n = produitVectoriel((pts[1] - pts[0]), (pts[2] - pts[0]));
 
+				/*
 				Vec3f u = n - light_dir;
 				Vec3f r = light_dir + u + u;
 
 				Vec3f spec = produitScalaire(eye , r);
-				
+				*/
 
 				image.set(P.x, P.y, c * (-intensitee));
 			}
